@@ -7,7 +7,7 @@
 <title>G11 Talent Compass Intelligence</title>
 <link rel="stylesheet" href="styles.css">
 <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js"></script>
-<script defer src="app.js"></script>
+<script defer src="app.js?v=20261124-confirmacao"></script>
 </head>
 <body>
 <header class="top">
@@ -22,9 +22,11 @@
     <form id="auth-form">
       <label id="email-label">E-mail<input id="email" type="email" autocomplete="username" maxlength="254" required></label>
       <label id="password-label">Palavra-passe<input id="password" type="password" autocomplete="current-password" maxlength="128" required></label>
+      <label id="code-label" hidden>Código de confirmação<input id="email-code" type="text" autocomplete="one-time-code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6"></label>
       <button class="primary" id="auth-submit" type="submit">Entrar</button>
+      <button id="resend-code" type="button" class="link" hidden>Reenviar código</button>
     </form>
-    <div id="auth-actions" class="auth-actions"><button id="activate" type="button" class="link">Ativar conta</button><button id="recover" type="button" class="link">Recuperar palavra-passe</button></div>
+    <div id="auth-actions" class="auth-actions"><button id="activate" type="button" class="link">Ativar conta</button><button id="confirm-email" type="button" class="link">Confirmar e-mail</button><button id="recover" type="button" class="link">Recuperar palavra-passe</button></div>
     <button id="auth-back" type="button" class="link" hidden>Voltar à entrada</button>
   </div>
 </section>
