@@ -5,9 +5,9 @@
 <meta name="referrer" content="no-referrer">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self'; connect-src https://nvlnulndlnxctcshyrnp.supabase.co; img-src 'self'; base-uri 'none'; form-action 'self'; object-src 'none'">
 <title>G11 Talent Compass Intelligence</title>
-<link rel="stylesheet" href="styles.css?v=tiers">
+<link rel="stylesheet" href="styles.css?v=dashboard-completo">
 <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js"></script>
-<script defer src="app.js?v=tiers-41"></script>
+<script defer src="app.js?v=dashboard-completo"></script>
 </head>
 <body>
 <header class="top">
@@ -30,18 +30,23 @@
 </section>
 <p id="status" role="status" aria-live="polite" hidden></p>
 <section id="dashboard" hidden>
-  <nav class="nav" aria-label="Áreas do Talent Compass"><button type="button" id="nav-exec" aria-current="page">Visão executiva</button><button type="button" id="nav-locations" hidden>Localizações</button><button type="button" id="nav-admin" hidden>Permissões</button><span id="role"></span></nav>
+  <nav class="nav" aria-label="Áreas do Talent Compass"><button type="button" id="nav-exec" aria-current="page">Visão executiva</button><button type="button" id="nav-participation" data-section="participation">Participação</button><button type="button" id="nav-people" data-section="people">People Pulse</button><button type="button" id="nav-ai" data-section="ai">AI Pulse</button><button type="button" id="nav-survey1" data-section="survey1">Inquérito 1</button><button type="button" id="nav-survey2" data-section="survey2">Inquérito 2</button><button type="button" id="nav-survey3" data-section="survey3">Inquérito 3</button><button type="button" id="nav-comparison" data-section="comparison">Convergências &amp; Gaps</button><button type="button" id="nav-action" data-section="action">From Listening to Action</button><button type="button" id="nav-method" data-section="method">Metodologia</button><button type="button" id="nav-locations" hidden>Localizações</button><button type="button" id="nav-admin" hidden>Permissões</button><span id="role"></span></nav>
   <section id="report">
     <div class="report-head"><div><p class="eyebrow">TALENT COMPASS INTELLIGENCE</p><h1 id="report-title">Visão executiva</h1></div>
     <label id="scope-label" hidden>Localização<select id="scope"></select></label></div>
     <p class="sub" id="cutoff"></p>
     <div class="metrics" id="metrics"></div>
+    <article class="panel insight-panel" id="insight-panel" hidden><h2>Leitura executiva intercalar</h2><ul id="insights"></ul></article>
     <article class="panel priorities" id="priority-panel" hidden><h2>Prioridades de formação</h2><div id="priorities"></div></article>
     <section id="executive-charts" hidden aria-label="Pulse AI e indicadores gerais">
       <h2>Pulse AI</h2><div id="pulse-charts" class="chart-grid"></div>
       <h2>Indicadores gerais</h2><div id="general-charts" class="chart-grid"></div>
     </section>
     <p class="sub" id="report-note"></p>
+  </section>
+  <section id="analysis" hidden aria-labelledby="analysis-title">
+    <div class="report-head"><div><p class="eyebrow">TALENT COMPASS INTELLIGENCE</p><h1 id="analysis-title" tabindex="-1"></h1></div></div>
+    <p class="sub" id="analysis-note"></p><div id="analysis-content"></div>
   </section>
   <section id="admin" hidden>
     <div class="report-head"><div><p class="eyebrow">ADMINISTRAÇÃO</p><h1>Permissões de acesso</h1></div></div>

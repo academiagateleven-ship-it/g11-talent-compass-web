@@ -12,3 +12,16 @@ label,legend{font-weight:650;font-size:.91rem}input:not([type=checkbox]),select{
 
 .chart-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-bottom:24px}.report-chart h3{margin:0;font-size:1.1rem}.report-chart .sub{margin:4px 0 12px}.report-chart .priority-row{grid-template-columns:minmax(120px,1.3fr) minmax(40px,1fr) 30px}.report-chart .priority-row span{overflow-wrap:anywhere}
 @media(max-width:730px){.chart-grid{grid-template-columns:1fr}}
+
+.insight-panel,.analysis-card{margin-bottom:20px}
+.insight-panel ul{margin:0;padding-left:1.25rem;color:var(--muted)}
+.insight-panel li+li{margin-top:.35rem}
+#analysis-content>.chart-grid,#analysis-content>.panel{margin-top:16px}
+#analysis-content label select{display:inline-block;width:auto;margin-left:8px}
+#analysis-content label+div>.analysis-card{margin:12px 0 0;padding:0;border:0}
+.table-scroll{overflow-x:auto}.table-scroll table{border-collapse:collapse;width:100%;font-size:.9rem}
+.table-scroll th,.table-scroll td{padding:9px 12px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+.table-scroll thead th{color:var(--muted);white-space:nowrap}.table-scroll tbody th{font-weight:650}
+.action-flow{display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:12px;padding:0;margin:16px 0 24px;list-style:none;counter-reset:phase}
+.action-flow li{counter-increment:phase}.action-flow li::before{content:counter(phase,decimal-leading-zero);color:var(--accent);font-weight:850}
+.action-flow h2{margin:7px 0;font-size:1.08rem}.action-flow p{margin:0;color:var(--muted);font-size:.9rem}

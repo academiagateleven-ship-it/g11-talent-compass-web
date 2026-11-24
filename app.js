@@ -18,7 +18,7 @@ function status(message = "") {
 function clearDashboard() {
   reports = [];
   activeUser = null;
-  for (const id of ["metrics", "priorities", "accounts", "scope", "scope-list", "pulse-charts", "general-charts"]) byId(id).replaceChildren();
+  for (const id of ["metrics", "priorities", "accounts", "scope", "scope-list", "pulse-charts", "general-charts", "analysis-content", "insights"]) byId(id).replaceChildren();
   byId("permission-form").reset();
   byId("target").readOnly = false;
   byId("report-note").textContent = "";
@@ -72,6 +72,9 @@ function renderReport(scope) {
   byId("metrics").replaceChildren();
   byId("priorities").replaceChildren();
   byId("priority-panel").hidden = !snapshot?.prioridades?.length;
+  const insights = snapshot?.analises?.insights ?? [];
+  byId("insights").replaceChildren(...insights.map(text => node("li", text)));
+  byId("insight-panel").hidden = !insights.length;
   byId("report-note").textContent = snapshot?.notas || "";
   byId("cutoff").textContent = snapshot ? "Dados de " + new Intl.DateTimeFormat("pt-PT", { dateStyle: "long", timeZone: "UTC" }).format(new Date(snapshot.data)) : "Sem dados disponíveis.";
   const charts = scope === "executivo" ? snapshot?.charts ?? [] : [];
@@ -90,7 +93,8 @@ function renderReport(scope) {
 
 function renderChart(chart) {
   const card = node("article", null, "panel report-chart");
-  card.append(node("h3", chart.title), node("p", chart.note, "sub"));
+  card.append(node("h3", chart.title));
+  if (chart.note) card.append(node("p", chart.note, "sub"));
   const chartRows = node("div");
   renderBars(chart.rows, chartRows);
   card.append(chartRows);
@@ -110,17 +114,174 @@ function renderBars(items, container) {
   }
 }
 
+const analysisTitles = {
+  participation: "Participação", people: "People Pulse", ai: "AI Pulse",
+  survey1: "Inquérito 1 · Necessidades de Formação",
+  survey2: "Inquérito 2 · Liderança",
+  survey3: "Inquérito 3 · Percurso e Desenvolvimento",
+  comparison: "Convergências & Gaps",
+  action: "From Listening to Action", method: "Metodologia",
+};
+
 function openSection(section) {
   if (section === "admin" && activeUser?.role !== "admin") return;
-  for (const area of ["exec", "locations", "admin"]) {
-    if (section === area) byId("nav-" + area).setAttribute("aria-current", "page");
-    else byId("nav-" + area).removeAttribute("aria-current");
+  const analysis = Object.hasOwn(analysisTitles, section);
+  for (const button of byId("dashboard").querySelectorAll(".nav button")) {
+    if (button.id === "nav-" + section) button.setAttribute("aria-current", "page");
+    else button.removeAttribute("aria-current");
   }
-  byId("report").hidden = section === "admin";
+  byId("report").hidden = section === "admin" || analysis;
+  byId("analysis").hidden = !analysis;
   byId("admin").hidden = section !== "admin";
   byId("scope-label").hidden = section !== "locations";
   if (section === "admin") return loadPermissions();
+  if (analysis) return renderAnalysis(section);
   renderReport(section === "exec" ? "executivo" : byId("scope").value);
+}
+
+function tableCard(title, columns, rows, note) {
+  const card = node("article", null, "panel analysis-card");
+  const label = node("h2", title);
+  label.tabIndex = -1;
+  card.append(label);
+  if (note) card.append(node("p", note, "sub"));
+  const frame = node("div", null, "table-scroll");
+  const table = node("table");
+  table.setAttribute("aria-label", title);
+  const headers = table.createTHead().insertRow();
+  for (const column of columns) {
+    const cell = node("th", column);
+    cell.scope = "col";
+    headers.append(cell);
+  }
+  const body = table.createTBody();
+  for (const [first, ...rest] of rows) {
+    const row = body.insertRow();
+    const heading = node("th", first);
+    heading.scope = "row";
+    row.append(heading);
+    for (const value of rest) row.append(node("td", value));
+  }
+  frame.append(table);
+  card.append(frame);
+  return card;
+}
+
+function chartGrid(charts) {
+  const grid = node("div", null, "chart-grid");
+  grid.append(...charts.map(renderChart));
+  return grid;
+}
+
+const percent = new Intl.NumberFormat("pt-PT", { style: "percent", maximumFractionDigits: 1 });
+const decimal = new Intl.NumberFormat("pt-PT", { maximumFractionDigits: 2 });
+
+function participationCards(snapshot, participation) {
+  const surveyNames = snapshot.inqueritos.map((survey, index) => "Inquérito " + (index + 1));
+  const cards = [tableCard("Universo e participação", ["Inquérito", "Respostas elegíveis", "Universo", "Em falta", "Taxa"],
+    snapshot.inqueritos.map(({ nome, respondidas, universo }) =>
+      [nome, respondidas, universo, universo - respondidas, percent.format(respondidas / universo)]))];
+  const panel = node("article", null, "panel analysis-card");
+  const label = node("label", "Agrupar por ");
+  const filter = node("select");
+  filter.append(new Option("Área de atividade", "segments"), new Option("Regime de trabalho", "regimes"));
+  label.append(filter);
+  const details = node("div");
+  function draw() {
+    const rows = participation[filter.value].map(({ label, surveys }) => [label, ...surveys.map(
+      amount => amount ? amount[0] + " / " + amount[1] + " (" + percent.format(amount[0] / amount[1]) + ")" : "—"
+    )]);
+    details.replaceChildren(tableCard("Participação por grupo", ["Grupo", ...surveyNames], rows,
+      "Respostas elegíveis / universo. O traço indica que o desdobramento foi suprimido para proteger grupos pequenos."));
+  }
+  filter.addEventListener("change", draw);
+  draw();
+  panel.append(label, details);
+  cards.push(panel);
+  return cards;
+}
+
+const actionSteps = [
+  ["Ouvir", "Recolher os contributos dos colaboradores, da liderança e do inquérito sobre percurso."],
+  ["Analisar", "Cruzar participação, prioridades, diferenças e competências emergentes."],
+  ["Priorizar", "Distinguir necessidades estruturais, emergentes e específicas."],
+  ["Desenhar", "Definir a estrutura do plano bienal, os formatos e as experiências de aprendizagem."],
+  ["Ativar e evoluir", "Implementar, medir resultados e ajustar o plano ao longo do ciclo."],
+];
+const methods = [
+  ["Data de referência", "19 de novembro de 2026. Os dados são intercalares."],
+  ["Deduplicação", "Considerou-se a resposta mais recente por identificador. Os relatórios apresentam apenas resultados agregados."],
+  ["Universo operacional", "O denominador corresponde aos elegíveis em cada inquérito. No Inquérito 3, o universo abrange a sede, os efetivos e funções ou missões de responsabilidade."],
+  ["Regimes e atividade", "A Participação permite consultar desdobramentos disponíveis por FT/PT e Equipas Comerciais/Backoffice."],
+  ["Localizações", "A leitura operacional por loja ou unidade é disponibilizada segundo as permissões do perfil."],
+  ["Proteção de grupos pequenos", "Algumas categorias foram agrupadas. Os desdobramentos com volumes reduzidos foram suprimidos."],
+  ["Finalidade", "Apoiar a proposta do Plano Bienal de Formação Contínua Gateleven 2027 – abril de 2029."],
+];
+
+function textCards(entries) {
+  const grid = node("div", null, "chart-grid");
+  for (const [heading, copy] of entries) {
+    const card = node("article", null, "panel report-chart");
+    card.append(node("h3", heading), node("p", copy));
+    grid.append(card);
+  }
+  return grid;
+}
+
+function renderAnalysis(section) {
+  const snapshot = reports.find(row => row.scope === "executivo")?.snapshot;
+  const detail = snapshot?.analises;
+  const content = byId("analysis-content");
+  const summary = byId("analysis-note");
+  const title = byId("analysis-title");
+  title.textContent = analysisTitles[section];
+  content.replaceChildren();
+  summary.textContent = "";
+  if (section === "action") {
+    summary.textContent = "Da escuta ao Plano Bienal de Formação Contínua Gateleven 2027 – abril de 2029.";
+    const flow = node("ol", null, "action-flow");
+    for (const [label, description] of actionSteps) {
+      const step = node("li", null, "panel");
+      step.append(node("h2", label), node("p", description));
+      flow.append(step);
+    }
+    content.append(flow, textCards([
+      ["O que o dashboard entrega", "Visibilidade da participação, indicadores, comparação entre perspetivas e prioridades emergentes."],
+      ["O que o relatório final entregará", "Conclusões consolidadas, fundamentação, prioridades do plano, recomendações e compromissos de desenvolvimento."],
+    ]));
+  } else if (section === "method") {
+    summary.textContent = "Critérios de leitura dos resultados do Talent Compass.";
+    content.append(textCards(methods));
+    if (detail) content.append(tableCard("Reconciliação dos inquéritos",
+      ["Inquérito", "Respostas brutas", "Identificadores distintos", "Dentro do universo operacional"],
+      snapshot.inqueritos.map(({ nome, respondidas }, i) => [nome, detail.rawCounts[i], detail.surveys[i].n, respondidas]),
+      "Os totais dos três inquéritos não representam pessoas distintas entre questionários."));
+  } else if (!detail) {
+    summary.textContent = "Os dados desta secção estão temporariamente indisponíveis.";
+  } else if (section === "participation") {
+    summary.textContent = "Acompanhamento da participação no universo elegível de cada inquérito.";
+    content.append(...participationCards(snapshot, detail.participation));
+  } else if (section === "people") {
+    summary.textContent = "Perfil das " + detail.people.n + " respostas distintas ao Inquérito 1. A amostra respondente é a base de leitura.";
+    content.append(chartGrid(detail.people.charts));
+  } else if (section === "ai") {
+    summary.textContent = "Inquérito 1 · " + detail.ai.n + " respostas.";
+    content.append(chartGrid(snapshot.charts.slice(0, 2)), textCards([
+      ["IA como necessidade atual", detail.ai.need + " menções"],
+      ["IA como competência futura", detail.ai.future + " menções"],
+    ]));
+  } else if (section === "comparison") {
+    summary.textContent = "Prioridades ponderadas dos colaboradores e da liderança, normalizadas de 0 a 100 em cada grupo.";
+    content.append(tableCard("Colaboradores e liderança", ["Prioridade", "Colaboradores", "Liderança", "Diferença", "Leitura"],
+      detail.comparisons.map(row => [row.cat, row.collab, row.lead, row.gap, row.type]),
+      "A diferença corresponde à distância entre os dois índices. Zero indica que o tema não integrou as prioridades apresentadas para esse grupo."),
+      chartGrid([{ title: "Cinco prioridades emergentes", note: "Índice composto", rows: detail.emerging }]));
+  } else {
+    const survey = detail.surveys[Number(section.slice(-1)) - 1];
+    summary.textContent = survey.n + " respostas distintas. A base analítica pode diferir do universo elegível da Participação.";
+    if (survey.metric) content.append(textCards([[survey.metric[0], decimal.format(survey.metric[1]) + " / 5"]]));
+    content.append(chartGrid(survey.charts));
+  }
 }
 
 function updateScopeFields() {
@@ -264,6 +425,7 @@ byId("auth-form").addEventListener("submit", async (event) => {
   } finally { button.disabled = false; }
 });
 byId("nav-exec").onclick = () => openSection("exec");
+for (const button of byId("dashboard").querySelectorAll("[data-section]")) button.onclick = () => openSection(button.dataset.section);
 byId("nav-locations").onclick = () => openSection("locations");
 byId("nav-admin").onclick = () => openSection("admin");
 byId("scope").onchange = () => renderReport(byId("scope").value);
