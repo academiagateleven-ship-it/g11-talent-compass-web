@@ -3,6 +3,10 @@ const byId = (id) => document.getElementById(id);
 const roles = { colaborador: "Colaborador", supervisor: "Supervisão", manager: "Manager", admin: "Admin" };
 const identitySuffix = "@access.talent-compass.invalid";
 const db = window.supabase?.createClient("https://nvlnulndlnxctcshyrnp.supabase.co", "sb_publishable_7rR80gMcy9at06Jx1gcIzA_XTks6H7S", { auth: { persistSession: false, detectSessionInUrl: false } });
+const setupParameter = new URLSearchParams(window.location.hash.slice(1)).get("ativar");
+let setupToken = /^[0-9a-f]{64}$/.test(setupParameter ?? "") ? setupParameter : null;
+if (setupToken) window.history.replaceState(null, "", window.location.pathname + window.location.search);
+
 let reports = [];
 let activeUser = null;
 
@@ -224,6 +228,18 @@ byId("permission-form").addEventListener("reset", () => {
 });
 byId("target-role").addEventListener("change", updateScopeFields);
 
+function showAccessForm() {
+  const settingUp = Boolean(setupToken);
+  byId("auth-title").textContent = settingUp ? "Ativar Admin 41" : "Entrar";
+  byId("auth-submit").textContent = settingUp ? "Ativar acesso" : "Entrar";
+  byId("access-help").textContent = settingUp ? "Define a tua palavra-passe com pelo menos 16 caracteres." : "Para obter acesso, contacta o administrador do Talent Compass.";
+  byId("code").readOnly = settingUp;
+  if (settingUp) byId("code").value = "41";
+  byId("password").minLength = settingUp ? 16 : 1;
+  byId("password").autocomplete = settingUp ? "new-password" : "current-password";
+}
+showAccessForm();
+
 byId("auth-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   if (!db) return status("Não foi possível ligar ao serviço de autenticação.");
@@ -232,6 +248,13 @@ byId("auth-form").addEventListener("submit", async (event) => {
   const button = event.submitter;
   button.disabled = true;
   try {
+    if (setupToken) {
+      if (new TextEncoder().encode(password).length > 72) return status("Escolhe uma palavra-passe de até 72 bytes.");
+      const result = await db.functions.invoke("compass-setup", { body: { token: setupToken, password } });
+      if (result.error) return status("Não foi possível ativar o código 41. Confirma que o link ainda está válido.");
+      setupToken = null;
+      showAccessForm();
+    }
     const { error } = await db.auth.signInWithPassword({ email: code + identitySuffix, password });
     if (error) return status(error.status === 429 ? "Demasiadas tentativas. Volta a tentar dentro de instantes." : "Confirma o código e a palavra-passe com o administrador.");
     byId("password").value = "";
