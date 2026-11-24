@@ -2,6 +2,7 @@
 const byId = (id) => document.getElementById(id);
 const roles = { consulta: "Consulta", supervisor: "Supervisão", manager: "Manager", admin: "Admin" };
 const appUrl = new URL("./", window.location.href).href;
+const callbackError = new URLSearchParams(window.location.hash.slice(1)).get("error_code") || new URLSearchParams(window.location.search).get("error_code");
 const db = window.supabase?.createClient("https://nvlnulndlnxctcshyrnp.supabase.co", "sb_publishable_7rR80gMcy9at06Jx1gcIzA_XTks6H7S", { auth: { persistSession: false } });
 let mode = "login";
 let reports = [];
@@ -14,7 +15,7 @@ function status(message = "") {
 
 function setMode(next) {
   mode = next;
-  const names = { login: "Entrar", activate: "Ativar conta", recover: "Recuperar palavra-passe", password: "Definir palavra-passe", confirm: "Confirmar e-mail" };
+  const names = { login: "Entrar", activate: "Ativar conta", recover: "Recuperar palavra-passe", password: "Definir palavra-passe", confirm: "Reenviar confirmação" };
   byId("auth-title").textContent = names[next];
   byId("auth-submit").textContent = names[next];
   byId("auth-actions").hidden = next !== "login";
@@ -24,14 +25,10 @@ function setMode(next) {
   const requiresPassword = next !== "recover" && next !== "confirm";
   byId("password-label").hidden = !requiresPassword;
   byId("password").required = requiresPassword;
-  byId("code-label").hidden = next !== "confirm";
-  byId("email-code").required = next === "confirm";
-  byId("email-code").value = "";
-  byId("resend-code").hidden = next !== "confirm";
   byId("password").value = "";
   byId("password").minLength = next === "login" ? 1 : 12;
   byId("password").autocomplete = next === "login" ? "current-password" : "new-password";
-  const help = { activate: "Usa o e-mail autorizado pelo administrador e uma palavra-passe com pelo menos 12 caracteres.", confirm: "Introduz o código de seis dígitos do e-mail de confirmação." };
+  const help = { activate: "Usa o e-mail autorizado pelo administrador e uma palavra-passe com pelo menos 12 caracteres.", confirm: "Para ativar a conta, abre o link da mensagem de confirmação mais recente. Se precisares de outra mensagem, pede o reenvio aqui." };
   status(help[next] || "");
 }
 
@@ -209,15 +206,14 @@ byId("auth-form").addEventListener("submit", async (event) => {
       await loadDashboard();
     } else if (mode === "activate") {
       const { error } = await db.auth.signUp({ email, password, options: { emailRedirectTo: appUrl } });
-      if (error?.status === 429) { setMode("confirm"); return status("O serviço limitou temporariamente o envio. Usa o código mais recente que recebeste ou aguarda antes de pedir outro."); }
+      if (error?.status === 429) { setMode("confirm"); return status("O serviço limitou temporariamente o envio. Usa o link da mensagem mais recente ou aguarda antes de pedir outro envio."); }
       if (error) return status("Não foi possível ativar a conta. Confirma o e-mail com o administrador.");
       setMode("confirm");
-      status("Consulta a caixa de entrada e o spam para encontrares o código.");
+      status("Consulta a caixa de entrada e o spam e abre o link da mensagem de confirmação mais recente.");
     } else if (mode === "confirm") {
-      const { error } = await db.auth.verifyOtp({ email, token: byId("email-code").value.trim(), type: "email" });
-      if (error) return status(error.status === 429 ? "Demasiadas tentativas. Aguarda antes de tentar novamente." : "O código é inválido ou expirou. Usa o código mais recente ou pede outro.");
-      setMode("login");
-      await loadDashboard();
+      const { error } = await db.auth.resend({ type: "signup", email, options: { emailRedirectTo: appUrl } });
+      if (error?.status === 429) return status("O Supabase limitou temporariamente os envios. Aguarda antes de pedir outra mensagem.");
+      status(error ? "Não foi possível reenviar a confirmação. Verifica o e-mail e tenta mais tarde." : "Consulta a caixa de entrada e o spam e abre o link da mensagem mais recente.");
     } else if (mode === "recover") {
       const { error } = await db.auth.resetPasswordForEmail(email, { redirectTo: appUrl });
       setMode("login");
@@ -232,23 +228,6 @@ byId("auth-form").addEventListener("submit", async (event) => {
 });
 byId("activate").onclick = () => setMode("activate");
 byId("confirm-email").onclick = () => setMode("confirm");
-byId("resend-code").onclick = async () => {
-  const emailField = byId("email");
-  if (!emailField.reportValidity()) return;
-  const button = byId("resend-code");
-  button.disabled = true;
-  try {
-    const { error } = await db.auth.resend({
-      type: "signup", email: emailField.value.trim().toLowerCase(), options: { emailRedirectTo: appUrl },
-    });
-    if (error?.status === 429) return status("O serviço limitou temporariamente os envios. Aguarda antes de pedir outro código.");
-    status(error ? "Não foi possível reenviar. Verifica o e-mail ou tenta mais tarde." : "Consulta a caixa de entrada e o spam para encontrares o código mais recente.");
-  } catch {
-    status("Não foi possível ligar ao serviço de autenticação.");
-  } finally {
-    button.disabled = false;
-  }
-};
 byId("recover").onclick = () => setMode("recover");
 byId("auth-back").onclick = () => setMode("login");
 byId("nav-exec").onclick = () => openSection("exec");
@@ -270,6 +249,11 @@ byId("theme").onclick = () => {
   localStorage.setItem("g11-compass-theme", next);
   theme(next);
 };
+if (callbackError === "otp_expired") {
+  setMode("confirm");
+  status("O link é inválido ou expirou. Pede uma nova confirmação e abre a mensagem mais recente.");
+  window.history.replaceState(null, "", appUrl);
+}
 if (!db) status("Serviço de autenticação indisponível.");
 else {
   db.auth.onAuthStateChange((event) => {
