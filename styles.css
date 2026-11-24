@@ -9,3 +9,6 @@ label,legend{font-weight:650;font-size:.91rem}input:not([type=checkbox]),select{
 .compass-banner{display:block;width:100%;height:auto;margin:24px 0 0;border:1px solid var(--line);border-radius:20px}
 .welcome{padding:27px 0 42px}
 @media(max-width:730px){.compass-banner{margin-top:14px;border-radius:12px}.welcome{padding:18px 0 28px}}
+
+.chart-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-bottom:24px}.report-chart h3{margin:0;font-size:1.1rem}.report-chart .sub{margin:4px 0 12px}.report-chart .priority-row{grid-template-columns:minmax(120px,1.3fr) minmax(40px,1fr) 30px}.report-chart .priority-row span{overflow-wrap:anywhere}
+@media(max-width:730px){.chart-grid{grid-template-columns:1fr}}

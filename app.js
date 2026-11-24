@@ -1,10 +1,8 @@
 "use strict";
 const byId = (id) => document.getElementById(id);
-const roles = { consulta: "Consulta", supervisor: "Supervisão", manager: "Manager", admin: "Admin" };
-const appUrl = new URL("./", window.location.href).href;
-const callbackError = new URLSearchParams(window.location.hash.slice(1)).get("error_code") || new URLSearchParams(window.location.search).get("error_code");
-const db = window.supabase?.createClient("https://nvlnulndlnxctcshyrnp.supabase.co", "sb_publishable_7rR80gMcy9at06Jx1gcIzA_XTks6H7S", { auth: { persistSession: false } });
-let mode = "login";
+const roles = { colaborador: "Colaborador", supervisor: "Supervisão", manager: "Manager", admin: "Admin" };
+const identitySuffix = "@access.talent-compass.invalid";
+const db = window.supabase?.createClient("https://nvlnulndlnxctcshyrnp.supabase.co", "sb_publishable_7rR80gMcy9at06Jx1gcIzA_XTks6H7S", { auth: { persistSession: false, detectSessionInUrl: false } });
 let reports = [];
 let activeUser = null;
 
@@ -13,29 +11,10 @@ function status(message = "") {
   byId("status").hidden = !message;
 }
 
-function setMode(next) {
-  mode = next;
-  const names = { login: "Entrar", activate: "Ativar conta", recover: "Recuperar palavra-passe", password: "Definir palavra-passe", confirm: "Reenviar confirmação" };
-  byId("auth-title").textContent = names[next];
-  byId("auth-submit").textContent = names[next];
-  byId("auth-actions").hidden = next !== "login";
-  byId("auth-back").hidden = next === "login" || next === "password";
-  byId("email-label").hidden = next === "password";
-  byId("email").required = next !== "password";
-  const requiresPassword = next !== "recover" && next !== "confirm";
-  byId("password-label").hidden = !requiresPassword;
-  byId("password").required = requiresPassword;
-  byId("password").value = "";
-  byId("password").minLength = next === "login" ? 1 : 12;
-  byId("password").autocomplete = next === "login" ? "current-password" : "new-password";
-  const help = { activate: "Usa o e-mail autorizado pelo administrador e uma palavra-passe com pelo menos 12 caracteres.", confirm: "Para ativar a conta, abre o link da mensagem de confirmação mais recente. Se precisares de outra mensagem, pede o reenvio aqui." };
-  status(help[next] || "");
-}
-
 function clearDashboard() {
   reports = [];
   activeUser = null;
-  for (const id of ["metrics", "priorities", "accounts", "scope", "scope-list"]) byId(id).replaceChildren();
+  for (const id of ["metrics", "priorities", "accounts", "scope", "scope-list", "pulse-charts", "general-charts"]) byId(id).replaceChildren();
   byId("permission-form").reset();
   byId("target").readOnly = false;
   byId("report-note").textContent = "";
@@ -45,10 +24,10 @@ function clearDashboard() {
 }
 
 async function loadDashboard() {
-  if (mode === "password") return;
   const { data: { user }, error: userError } = await db.auth.getUser();
   if (userError || !user) return;
-  const { data: profile, error } = await db.from("compass_access").select("role,active").eq("email", user.email.toLowerCase()).maybeSingle();
+  const code = user.email?.endsWith(identitySuffix) ? user.email.slice(0, -identitySuffix.length) : "";
+  const { data: profile, error } = await db.from("compass_tiers").select("role,active").eq("code", code).maybeSingle();
   if (error || !profile?.active) {
     await db.auth.signOut();
     clearDashboard();
@@ -91,6 +70,10 @@ function renderReport(scope) {
   byId("priority-panel").hidden = !snapshot?.prioridades?.length;
   byId("report-note").textContent = snapshot?.notas || "";
   byId("cutoff").textContent = snapshot ? "Dados de " + new Intl.DateTimeFormat("pt-PT", { dateStyle: "long", timeZone: "UTC" }).format(new Date(snapshot.data)) : "Sem dados disponíveis.";
+  const charts = scope === "executivo" ? snapshot?.charts ?? [] : [];
+  byId("executive-charts").hidden = !charts.length;
+  byId("pulse-charts").replaceChildren(...charts.slice(0, 2).map(renderChart));
+  byId("general-charts").replaceChildren(...charts.slice(2).map(renderChart));
   if (!snapshot) return;
   for (const survey of snapshot.inqueritos) {
     const item = node("article", null, "panel metric");
@@ -98,16 +81,28 @@ function renderReport(scope) {
     item.append(node("h2", survey.nome), node("strong", rate), node("p", survey.universo ? survey.respondidas + " / " + survey.universo + " elegíveis" : "Amostra insuficiente"));
     byId("metrics").append(item);
   }
-  const priorities = snapshot.prioridades ?? [];
-  const max = Math.max(1, ...priorities.map(([, count]) => count));
-  for (const [label, count] of priorities) {
+  renderBars(snapshot.prioridades ?? [], byId("priorities"));
+}
+
+function renderChart(chart) {
+  const card = node("article", null, "panel report-chart");
+  card.append(node("h3", chart.title), node("p", chart.note, "sub"));
+  const chartRows = node("div");
+  renderBars(chart.rows, chartRows);
+  card.append(chartRows);
+  return card;
+}
+
+function renderBars(items, container) {
+  const max = Math.max(1, ...items.map(([, count]) => count));
+  for (const [label, count] of items) {
     const row = node("div", null, "priority-row");
     const bar = node("progress");
     bar.max = max;
     bar.value = count;
     bar.setAttribute("aria-label", label);
     row.append(node("span", label), bar, node("strong", count));
-    byId("priorities").append(row);
+    container.append(row);
   }
 }
 
@@ -125,12 +120,13 @@ function openSection(section) {
 }
 
 function updateScopeFields() {
-  byId("scope-field").hidden = byId("target-role").value === "consulta";
+  byId("scope-field").hidden = byId("target-role").value === "colaborador";
 }
 
 function editPermission(profile) {
-  byId("target").value = profile.email;
+  byId("target").value = profile.code;
   byId("target").readOnly = true;
+  updatePasswordField(true);
   byId("target-role").value = profile.role;
   byId("target-active").checked = profile.active;
   for (const checkbox of byId("scope-list").querySelectorAll("input")) checkbox.checked = profile.scopes.includes(checkbox.value);
@@ -148,12 +144,12 @@ async function loadPermissions() {
     label.append(checkbox, node("span", scope));
     scopeFields.append(label);
   }
-  const { data, error } = await db.from("compass_access").select("email,role,scopes,active").order("email");
+  const { data, error } = await db.from("compass_tiers").select("code,role,scopes,active").order("code");
   if (error) return status("Não foi possível carregar as permissões.");
   byId("accounts").replaceChildren();
   for (const profile of data) {
     const row = node("div", null, "account-row");
-    const identity = node("div", profile.email);
+    const identity = node("div", "Código " + profile.code);
     identity.append(node("small", roles[profile.role] + " · " + (profile.active ? "Ativo" : "Suspenso")));
     row.append(identity);
     if (profile.role !== "admin") {
@@ -166,27 +162,64 @@ async function loadPermissions() {
   }
 }
 
+function updatePasswordField(editing) {
+  byId("target-reset").hidden = !editing;
+  byId("target-secret").required = !editing;
+  byId("target-secret").value = "";
+  byId("target-secret-caption").textContent = editing ? "Nova palavra-passe (opcional)" : "Palavra-passe inicial";
+}
+
+function validPassword() {
+  const field = byId("target-secret");
+  const valid = field.value.length >= 12 && new TextEncoder().encode(field.value).length <= 72;
+  if (!valid) status("A palavra-passe deve ter pelo menos 12 caracteres e até 72 bytes.");
+  return valid;
+}
+
 byId("permission-form").addEventListener("submit", async (event) => {
   event.preventDefault();
+  const target = byId("target");
+  const code = target.value.trim();
+  const password = byId("target-secret").value;
+  if (target.readOnly && password) return status("Para trocar a palavra-passe, usa Redefinir palavra-passe.");
+  if (!target.readOnly && !validPassword()) return;
   const role = byId("target-role").value;
-  const scopes = role === "consulta" ? [] : Array.from(byId("scope-list").querySelectorAll("input:checked"), box => box.value);
+  const scopes = role === "colaborador" ? [] : Array.from(byId("scope-list").querySelectorAll("input:checked"), box => box.value);
+  const active = byId("target-active").checked;
   const button = event.submitter;
   button.disabled = true;
   try {
-    const { error } = await db.from("compass_access").upsert({
-      email: byId("target").value.trim().toLowerCase(),
-      role,
-      scopes,
-      active: byId("target-active").checked,
-    });
-    if (error) return status("Não foi possível guardar a permissão. Confirma o perfil e tenta de novo.");
+    const result = target.readOnly
+      ? await db.from("compass_tiers").update({ role, scopes, active }).eq("code", code).select("code").single()
+      : await db.functions.invoke("compass-account", { body: { action: "create", code, role, scopes, active, password } });
+    if (result.error) return status("Não foi possível guardar. Confirma o código e as permissões escolhidas.");
     byId("permission-form").reset();
     await loadPermissions();
-    status("Permissão guardada. A pessoa pode ativar a conta com o e-mail autorizado.");
+    status("Acesso guardado.");
+  } catch {
+    status("Não foi possível guardar o acesso.");
   } finally { button.disabled = false; }
 });
+
+byId("target-reset").onclick = async () => {
+  if (!validPassword()) return;
+  const button = byId("target-reset");
+  button.disabled = true;
+  try {
+    const result = await db.functions.invoke("compass-account", { body: {
+      action: "reset", code: byId("target").value, password: byId("target-secret").value,
+    } });
+    if (result.error) return status("Não foi possível redefinir a palavra-passe.");
+    byId("target-secret").value = "";
+    status("Palavra-passe redefinida.");
+  } catch {
+    status("Não foi possível redefinir a palavra-passe.");
+  } finally { button.disabled = false; }
+};
+
 byId("permission-form").addEventListener("reset", () => {
   byId("target").readOnly = false;
+  updatePasswordField(false);
   queueMicrotask(updateScopeFields);
 });
 byId("target-role").addEventListener("change", updateScopeFields);
@@ -194,42 +227,19 @@ byId("target-role").addEventListener("change", updateScopeFields);
 byId("auth-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   if (!db) return status("Não foi possível ligar ao serviço de autenticação.");
-  const email = byId("email").value.trim().toLowerCase();
+  const code = byId("code").value.trim();
   const password = byId("password").value;
   const button = event.submitter;
   button.disabled = true;
   try {
-    if (mode === "login") {
-      const { error } = await db.auth.signInWithPassword({ email, password });
-      if (error?.code === "email_not_confirmed") return setMode("confirm");
-      if (error) return status("Confirma o e-mail e a palavra-passe. Se for o primeiro acesso, ativa a conta.");
-      await loadDashboard();
-    } else if (mode === "activate") {
-      const { error } = await db.auth.signUp({ email, password, options: { emailRedirectTo: appUrl } });
-      if (error?.status === 429) { setMode("confirm"); return status("O serviço limitou temporariamente o envio. Usa o link da mensagem mais recente ou aguarda antes de pedir outro envio."); }
-      if (error) return status("Não foi possível ativar a conta. Confirma o e-mail com o administrador.");
-      setMode("confirm");
-      status("Consulta a caixa de entrada e o spam e abre o link da mensagem de confirmação mais recente.");
-    } else if (mode === "confirm") {
-      const { error } = await db.auth.resend({ type: "signup", email, options: { emailRedirectTo: appUrl } });
-      if (error?.status === 429) return status("O Supabase limitou temporariamente os envios. Aguarda antes de pedir outra mensagem.");
-      status(error ? "Não foi possível reenviar a confirmação. Verifica o e-mail e tenta mais tarde." : "Consulta a caixa de entrada e o spam e abre o link da mensagem mais recente.");
-    } else if (mode === "recover") {
-      const { error } = await db.auth.resetPasswordForEmail(email, { redirectTo: appUrl });
-      setMode("login");
-      status(error ? "Não foi possível iniciar a recuperação. Tenta mais tarde." : "Se a conta existir, receberás uma mensagem de recuperação.");
-    } else {
-      const { error } = await db.auth.updateUser({ password });
-      if (error) return status("Não foi possível guardar a palavra-passe. Pede um novo link.");
-      setMode("login");
-      await loadDashboard();
-    }
+    const { error } = await db.auth.signInWithPassword({ email: code + identitySuffix, password });
+    if (error) return status(error.status === 429 ? "Demasiadas tentativas. Volta a tentar dentro de instantes." : "Confirma o código e a palavra-passe com o administrador.");
+    byId("password").value = "";
+    await loadDashboard();
+  } catch {
+    status("Não foi possível ligar ao serviço de autenticação.");
   } finally { button.disabled = false; }
 });
-byId("activate").onclick = () => setMode("activate");
-byId("confirm-email").onclick = () => setMode("confirm");
-byId("recover").onclick = () => setMode("recover");
-byId("auth-back").onclick = () => setMode("login");
 byId("nav-exec").onclick = () => openSection("exec");
 byId("nav-locations").onclick = () => openSection("locations");
 byId("nav-admin").onclick = () => openSection("admin");
@@ -237,7 +247,7 @@ byId("scope").onchange = () => renderReport(byId("scope").value);
 byId("logout").onclick = async () => {
   await db.auth.signOut();
   clearDashboard();
-  setMode("login");
+  status();
 };
 function theme(selected) {
   document.documentElement.dataset.theme = selected;
@@ -249,15 +259,9 @@ byId("theme").onclick = () => {
   localStorage.setItem("g11-compass-theme", next);
   theme(next);
 };
-if (callbackError === "otp_expired") {
-  setMode("confirm");
-  status("O link é inválido ou expirou. Pede uma nova confirmação e abre a mensagem mais recente.");
-  window.history.replaceState(null, "", appUrl);
-}
 if (!db) status("Serviço de autenticação indisponível.");
 else {
   db.auth.onAuthStateChange((event) => {
-    if (event === "PASSWORD_RECOVERY") setMode("password");
     if (event === "SIGNED_OUT") clearDashboard();
     if (event === "INITIAL_SESSION") setTimeout(loadDashboard, 0);
   });

@@ -5,9 +5,9 @@
 <meta name="referrer" content="no-referrer">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self'; connect-src https://nvlnulndlnxctcshyrnp.supabase.co; img-src 'self'; base-uri 'none'; form-action 'self'; object-src 'none'">
 <title>G11 Talent Compass Intelligence</title>
-<link rel="stylesheet" href="styles.css?v=talent-compass-original">
+<link rel="stylesheet" href="styles.css?v=tiers">
 <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js"></script>
-<script defer src="app.js?v=20261124-reenvio"></script>
+<script defer src="app.js?v=tiers"></script>
 </head>
 <body>
 <header class="top">
@@ -21,12 +21,11 @@
   <div class="panel login">
     <h2 id="auth-title">Entrar</h2>
     <form id="auth-form">
-      <label id="email-label">E-mail<input id="email" type="email" autocomplete="username" maxlength="254" required></label>
+      <label>Código de acesso<input id="code" type="text" inputmode="numeric" autocomplete="username" pattern="[0-9]{1,8}" maxlength="8" required></label>
       <label id="password-label">Palavra-passe<input id="password" type="password" autocomplete="current-password" maxlength="128" required></label>
       <button class="primary" id="auth-submit" type="submit">Entrar</button>
     </form>
-    <div id="auth-actions" class="auth-actions"><button id="activate" type="button" class="link">Ativar conta</button><button id="confirm-email" type="button" class="link">Confirmar e-mail</button><button id="recover" type="button" class="link">Recuperar palavra-passe</button></div>
-    <button id="auth-back" type="button" class="link" hidden>Voltar à entrada</button>
+    <p class="sub">Para obter acesso, contacta o administrador do Talent Compass.</p>
   </div>
 </section>
 <p id="status" role="status" aria-live="polite" hidden></p>
@@ -38,16 +37,22 @@
     <p class="sub" id="cutoff"></p>
     <div class="metrics" id="metrics"></div>
     <article class="panel priorities" id="priority-panel" hidden><h2>Prioridades de formação</h2><div id="priorities"></div></article>
+    <section id="executive-charts" hidden aria-label="Pulse AI e indicadores gerais">
+      <h2>Pulse AI</h2><div id="pulse-charts" class="chart-grid"></div>
+      <h2>Indicadores gerais</h2><div id="general-charts" class="chart-grid"></div>
+    </section>
     <p class="sub" id="report-note"></p>
   </section>
   <section id="admin" hidden>
     <div class="report-head"><div><p class="eyebrow">ADMINISTRAÇÃO</p><h1>Permissões de acesso</h1></div></div>
     <div class="admin-layout"><form class="panel permissions" id="permission-form">
-      <h2>Conta e perfil</h2><label>E-mail<input id="target" type="email" maxlength="254" required></label>
-      <label>Perfil<select id="target-role"><option value="consulta">Consulta</option><option value="supervisor">Supervisão</option><option value="manager">Manager</option></select></label>
+      <h2>Conta e perfil</h2>
+      <label>Código de acesso<input id="target" type="text" inputmode="numeric" pattern="[0-9]{1,8}" maxlength="8" required></label>
+      <label id="target-secret-label"><span id="target-secret-caption">Palavra-passe inicial</span><input id="target-secret" type="password" minlength="12" maxlength="72" autocomplete="new-password" required></label>
+      <label>Perfil<select id="target-role"><option value="colaborador">Colaborador</option><option value="supervisor">Supervisão</option><option value="manager">Manager</option></select></label>
       <fieldset id="scope-field" hidden><legend>Localizações autorizadas</legend><div id="scope-list"></div></fieldset>
       <label class="check"><input id="target-active" type="checkbox" checked> Acesso ativo</label>
-      <div class="actions"><button class="primary" type="submit">Guardar acesso</button><button type="reset" class="quiet">Limpar</button></div>
+      <div class="actions"><button class="primary" type="submit">Guardar acesso</button><button id="target-reset" type="button" class="quiet" hidden>Redefinir palavra-passe</button><button type="reset" class="quiet">Limpar</button></div>
     </form><article class="panel accounts"><h2>Contas autorizadas</h2><div id="accounts"></div></article></div>
   </section>
 </section>
