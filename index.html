@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self'; connect-src https://nvlnulndlnxctcshyrnp.supabase.co; img-src 'self'; base-uri 'none'; form-action 'self'; object-src 'none'">
+<title>G11 Talent Compass Intelligence</title>
+<link rel="stylesheet" href="styles.css">
+<script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js"></script>
+<script defer src="app.js"></script>
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="./"><span class="mark">G11</span><span>Gateleven<small>Formação e Desenvolvimento</small></span></a>
+  <div class="actions"><button id="theme" class="quiet" type="button">Tema claro</button><button id="logout" class="quiet" type="button" hidden>Sair</button></div>
+</header>
+<main>
+<section id="auth" class="welcome">
+  <div class="intro"><p class="eyebrow">G11 TALENT COMPASS INTELLIGENCE</p><h1>O futuro começa<br>por escutar.</h1><p>Participação, prioridades de formação e desenvolvimento de pessoas na Gateleven.</p><div class="period">Plano de Formação 2027–2029</div></div>
+  <div class="panel login">
+    <h2 id="auth-title">Entrar</h2>
+    <form id="auth-form">
+      <label id="email-label">E-mail<input id="email" type="email" autocomplete="username" maxlength="254" required></label>
+      <label id="password-label">Palavra-passe<input id="password" type="password" autocomplete="current-password" maxlength="128" required></label>
+      <button class="primary" id="auth-submit" type="submit">Entrar</button>
+    </form>
+    <div id="auth-actions" class="auth-actions"><button id="activate" type="button" class="link">Ativar conta</button><button id="recover" type="button" class="link">Recuperar palavra-passe</button></div>
+    <button id="auth-back" type="button" class="link" hidden>Voltar à entrada</button>
+  </div>
+</section>
+<p id="status" role="status" aria-live="polite" hidden></p>
+<section id="dashboard" hidden>
+  <nav class="nav" aria-label="Áreas do Talent Compass"><button type="button" id="nav-exec" aria-current="page">Visão executiva</button><button type="button" id="nav-locations" hidden>Localizações</button><button type="button" id="nav-admin" hidden>Permissões</button><span id="role"></span></nav>
+  <section id="report">
+    <div class="report-head"><div><p class="eyebrow">TALENT COMPASS INTELLIGENCE</p><h1 id="report-title">Visão executiva</h1></div>
+    <label id="scope-label" hidden>Localização<select id="scope"></select></label></div>
+    <p class="sub" id="cutoff"></p>
+    <div class="metrics" id="metrics"></div>
+    <article class="panel priorities" id="priority-panel" hidden><h2>Prioridades de formação</h2><div id="priorities"></div></article>
+    <p class="sub" id="report-note"></p>
+  </section>
+  <section id="admin" hidden>
+    <div class="report-head"><div><p class="eyebrow">ADMINISTRAÇÃO</p><h1>Permissões de acesso</h1></div></div>
+    <div class="admin-layout"><form class="panel permissions" id="permission-form">
+      <h2>Conta e perfil</h2><label>E-mail<input id="target" type="email" maxlength="254" required></label>
+      <label>Perfil<select id="target-role"><option value="consulta">Consulta</option><option value="supervisor">Supervisão</option><option value="manager">Manager</option></select></label>
+      <fieldset id="scope-field" hidden><legend>Localizações autorizadas</legend><div id="scope-list"></div></fieldset>
+      <label class="check"><input id="target-active" type="checkbox" checked> Acesso ativo</label>
+      <div class="actions"><button class="primary" type="submit">Guardar acesso</button><button type="reset" class="quiet">Limpar</button></div>
+    </form><article class="panel accounts"><h2>Contas autorizadas</h2><div id="accounts"></div></article></div>
+  </section>
+</section>
+</main>
+<footer>Gateleven · Talent Compass Intelligence</footer>
+</body>
+</html>
